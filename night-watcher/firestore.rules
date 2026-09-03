@@ -1,0 +1,49 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isRoomMember(roomId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/rooms/$(roomId)/members/$(request.auth.uid));
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    match /rooms/{roomId} {
+      allow read: if isRoomMember(roomId);
+
+      // Room creation and membership are restricted to callable Cloud Functions.
+      allow create, update, delete: if false;
+
+      match /members/{userId} {
+        allow read: if isRoomMember(roomId);
+
+        allow create, update, delete: if false;
+      }
+
+      match /votes/{movieId} {
+        allow read: if isRoomMember(roomId);
+        allow create, update, delete: if false;
+      }
+
+      match /matches/{movieId} {
+        allow read: if isRoomMember(roomId);
+
+        allow create, update, delete: if false;
+      }
+
+      match /queue/{movieId} {
+        allow read: if isRoomMember(roomId);
+        allow create, update, delete: if false;
+      }
+    }
+  }
+}
